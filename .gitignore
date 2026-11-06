@@ -1,0 +1,15 @@
+node_modules/
+target/
+launcher/src-tauri/gen/
+data/
+runtime/
+.env
+.env.*
+!.env.example
+*.log
+*.exe
+*.zip
+*.pdb
+rooms.json
+rooms.json.tmp
+public-url.txt

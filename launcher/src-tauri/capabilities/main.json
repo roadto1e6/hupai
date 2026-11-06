@@ -1,0 +1,1 @@
+{"identifier":"launcher","description":"Local launcher only; game windows have no native command access.","windows":["main"],"permissions":["core:default"]}

@@ -1,0 +1,1 @@
+{"name":"hupai-animal-theatre","version":"2.0.0","private":true,"scripts":{"start":"node resources/game/server.js","test":"node --test tests/*.test.cjs"}}
