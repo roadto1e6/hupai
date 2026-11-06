@@ -90,6 +90,15 @@ fn open_game(window:WebviewWindow,app:tauri::AppHandle,local:bool)->Result<(),St
 }
 #[tauri::command]
 fn quit_app(window:WebviewWindow,app:tauri::AppHandle)->Result<(),String>{only_launcher(&window)?;app.exit(0);Ok(())}
+include!(concat!(env!("OUT_DIR"), "/payload.rs"));
+fn unpack(data:&std::path::Path)->std::io::Result<PathBuf>{
+ use std::hash::{Hash,Hasher};
+ let mut hash=std::collections::hash_map::DefaultHasher::new();
+ for (name,bytes) in FILES{name.hash(&mut hash);bytes.hash(&mut hash)}
+ let root=data.join("runtime").join(format!("{:016x}",hash.finish()));
+ for (name,bytes) in FILES{let file=root.join(name);let valid=std::fs::read(&file).map(|old|old.as_slice()==*bytes).unwrap_or(false);if !valid{std::fs::create_dir_all(file.parent().unwrap())?;let tmp=file.with_extension("unpack-tmp");std::fs::write(&tmp,bytes)?;std::fs::rename(tmp,file)?}}
+ Ok(root)
+}
 fn main(){
     let app=tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app,_,_|{if let Some(window)=app.get_webview_window("main"){let _=window.show();let _=window.unminimize();let _=window.set_focus();}}))
@@ -97,7 +106,7 @@ fn main(){
         .invoke_handler(tauri::generate_handler![get_status,start_service,stop_service,copy_link,open_game,quit_app])
         .setup(|app|{
             let data=std::env::var_os("HUPAI_DATA_DIR").map(PathBuf::from).unwrap_or(app.path().app_data_dir()?);
-            let resources=app.path().resource_dir()?.join("resources");
+            let resources=unpack(&data)?;
             app.manage(Runtime{host:Mutex::new(None),status:Mutex::new(Status{phase:"starting".into(),..Default::default()}),epoch:AtomicU64::new(0),data,resources});
             if let Err(message)=launch(app.handle()){set_status(app.handle(),Status{phase:"error".into(),message,..Default::default()});}
             Ok(())

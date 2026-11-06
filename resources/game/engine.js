@@ -1,5 +1,6 @@
 const {randomInt}=require('node:crypto');
 const TYPES=['A','2','3','4','5','JOKER'];
+const playLimit=n=>n===2?6:n===3?5:4;
 class RuleError extends Error {}
 const check=(ok,message)=>{if(!ok)throw new RuleError(message)};
 function shuffle(items,rng=Math.random){for(let i=items.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[items[i],items[j]]=[items[j],items[i]]}return items}
@@ -32,8 +33,8 @@ function act(g,actor,action){
  if(type==='play'){
   check(g.pending===null,'最后一手待确认，只能质疑或不要');
   const counts=action.cards;check(counts&&typeof counts==='object'&&!Array.isArray(counts),'请选择手牌');
-  const cards=[];for(const [t,n]of Object.entries(counts)){check(TYPES.includes(t)&&Number.isInteger(n)&&n>=0&&n<=4,'选牌数量无效');for(let k=0;k<n;k++)cards.push(t)}
-  check(cards.length>=1&&cards.length<=4,'每手需要出 1–4 张');
+  const cards=[];for(const [t,n]of Object.entries(counts)){check(TYPES.includes(t)&&Number.isInteger(n)&&n>=0&&n<=playLimit(g.hands.length),'选牌数量无效');for(let k=0;k<n;k++)cards.push(t)}
+  check(cards.length>=1&&cards.length<=playLimit(g.hands.length),`每手需要出 1–${playLimit(g.hands.length)} 张`);
   const hand=[...g.hands[actor]];for(const card of cards){const at=hand.indexOf(card);check(at>=0,'所选牌超过持有数量');hand.splice(at,1)}
   const claim=g.claim??action.claim;check(TYPES.slice(0,5).includes(claim),'请选择 A、2、3、4、5 中的一个点数');
   check(g.claim===null||action.claim===undefined||action.claim===g.claim,'本轮不能更改宣称');
@@ -55,7 +56,7 @@ function act(g,actor,action){
 function snapshot(g,seat){
  if(!g)return null;
  const {hands,pile,last,discarded,...safe}=g;
- return {...safe,active:[...g.active],hand:[...hands[seat]],counts:hands.map(h=>h.length),pileCount:pile.length,discardCount:discarded.length,last:last?{actor:last.actor,count:last.cards.length}:null,history:g.history.map(e=>({...e})),event:g.event?{...g.event}:null};
+ return {...safe,maxPlay:playLimit(hands.length),active:[...g.active],hand:[...hands[seat]],counts:hands.map(h=>h.length),pileCount:pile.length,discardCount:discarded.length,last:last?{actor:last.actor,count:last.cards.length}:null,history:g.history.map(e=>({...e})),event:g.event?{...g.event}:null};
 }
 function botAction(g,seat,rng=secureRandom){
  const last=g.last;
@@ -65,7 +66,7 @@ function botAction(g,seat,rng=secureRandom){
  const claim=g.claim??[...TYPES.slice(0,5)].sort((a,b)=>freq[b]-freq[a])[0];
  const honest=hand.filter(c=>c===claim||c==='JOKER');const bluff=rng()<.23||honest.length===0;
  const candidates=bluff?shuffle([...hand],rng):honest;
- const amount=Math.min(candidates.length,1+Math.floor(rng()*Math.min(4,candidates.length)));
+ const amount=Math.min(candidates.length,1+Math.floor(rng()*Math.min(playLimit(g.hands.length),candidates.length)));
  const cards={};for(const c of candidates.slice(0,amount))cards[c]=(cards[c]??0)+1;
  return {type:'play',cards,claim};
 }

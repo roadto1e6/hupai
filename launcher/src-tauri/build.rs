@@ -1,1 +1,3 @@
-fn main() { tauri_build::build() }
+use std::{env,fs,path::Path};
+fn collect(dir:&Path,root:&Path,out:&mut String){let mut paths:Vec<_>=fs::read_dir(dir).unwrap().map(|e|e.unwrap().path()).collect();paths.sort();for p in paths{if p.is_dir(){collect(&p,root,out)}else{let name=p.strip_prefix(root).unwrap().to_string_lossy().replace("\\","/");out.push_str(&format!("({:?}, include_bytes!({:?})),\n",name,p.to_string_lossy()));}}}
+fn main(){let root=Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("../../resources").canonicalize().unwrap();println!("cargo:rerun-if-changed={}",root.display());let mut text=String::from("static FILES: &[(&str, &[u8])] = &[\n");collect(&root,&root,&mut text);text.push_str("];\n");fs::write(Path::new(&env::var("OUT_DIR").unwrap()).join("payload.rs"),text).unwrap();tauri_build::build()}
