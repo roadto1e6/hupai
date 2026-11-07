@@ -48,9 +48,12 @@ function createGameServer({stateFile=null,botDelay=1500}={}){
    r.touched=Date.now();save();schedule(r);respond(res,200,{...publicState(r,p),token:p.token});return;
   }
   r=rooms.get(String(a.code));p=r?.players.find(x=>x.token===a.token);
+  if(!r){respond(res,410,{error:'房间已解散',code:'ROOM_CLOSED'});return}
   if(!p){respond(res,401,{error:'座位已失效，请重新加入',code:'AUTH_EXPIRED'});return}
   p.seen=Date.now();r.touched=Date.now();
   p.signals=(p.signals||[]).filter(x=>Date.now()-x.at<60000&&!(Number.isInteger(a.signalAck)&&x.id<=a.signalAck));
+  if(a.type==='disconnect'&&r.host===p.id){stopBot(r);rooms.delete(r.code);save();respond(res,200,{left:true,dissolved:true});return}
+  if(a.type==='disconnect')a.type='leave';
   if(a.type==='voice-config'){respond(res,200,{iceServers});return}
   if(a.type==='voice'){
    requireRule(!p.bot&&typeof a.enabled==='boolean','无效语音状态');
